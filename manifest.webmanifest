@@ -1,0 +1,17 @@
+{
+  "name": "Streetball 3x3",
+  "short_name": "Streetball 3x3",
+  "description": "Anschreibe-App für 3x3-Basketball: Punkte, Spieluhr, Shotclock und Teamfouls.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d0f12",
+  "theme_color": "#0d0f12",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
