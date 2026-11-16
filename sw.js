@@ -1,6 +1,7 @@
 // Service Worker: hält die App offline verfügbar.
-// Bei jeder neuen Version CACHE hochzählen, damit Geräte die neuen Dateien laden.
-const CACHE = 'sb3x3-v2';
+// Strategie: Netz zuerst (immer die neueste Version, wenn online), Cache nur als Offline-Ersatz.
+// Bei jeder neuen Version CACHE hochzählen.
+const CACHE = 'sb3x3-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -13,7 +14,11 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -24,21 +29,19 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Stale-while-revalidate: sofort aus dem Cache antworten, im Hintergrund aktualisieren.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const key = req.mode === 'navigate' ? './index.html' : req;
   event.respondWith(
-    caches.open(CACHE).then(async (cache) => {
-      const key = req.mode === 'navigate' ? './index.html' : req;
-      const cached = await cache.match(key, { ignoreSearch: true });
-      const network = fetch(req)
-        .then((res) => {
-          if (res && res.ok) cache.put(key, res.clone());
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(req, { cache: 'no-cache' })
+      .then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(key, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(key, { ignoreSearch: true }))
   );
 });

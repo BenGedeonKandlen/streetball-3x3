@@ -1,6 +1,7 @@
 'use strict';
 /* Streetball 3x3 – Anschreibe-App (Punkte, Spieluhr, Shotclock, Teamfouls). */
 (() => {
+  const APP_VERSION = '1.2';
   const STORE_KEY = 'sb3x3.games.v1';
   const PREF_KEY = 'sb3x3.prefs.v1';
   const COLORS = ['#f26b1d', '#2f7bff', '#e63946', '#2ec27e', '#f5c211', '#a06cf0', '#ffffff', '#ff4fa3'];
@@ -400,7 +401,8 @@
       el('p', { text: 'Spiele werden nur auf diesem Gerät gespeichert. Mit Export und Import kannst du sie sichern oder auf ein anderes Gerät übertragen.' }),
       btn('Spiele exportieren', exportGames, 'ghost'),
       btn('Spiele importieren', () => file.click(), 'ghost'),
-      file);
+      file,
+      el('p', { text: `Version ${APP_VERSION}` }));
     await ask({ title: 'Einstellungen', body, buttons: [{ label: 'Fertig', value: 'ok', kind: 'primary' }] });
   }
 
@@ -712,6 +714,18 @@
   route();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    // Neue Version sofort übernehmen: Seite einmal neu laden, sobald ein neuer Service Worker aktiv ist.
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      });
+    }).catch(() => {});
   }
 })();
