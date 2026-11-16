@@ -5,8 +5,8 @@
   const PREF_KEY = 'sb3x3.prefs.v1';
   const COLORS = ['#f26b1d', '#2f7bff', '#e63946', '#2ec27e', '#f5c211', '#a06cf0', '#ffffff', '#ff4fa3'];
   const PRESETS = {
-    fiba: { clockEnabled: true, clockMinutes: 10, pointLimit: 21, shotEnabled: true, shotSeconds: 12 },
-    hobby: { clockEnabled: false, clockMinutes: 10, pointLimit: 21, shotEnabled: false, shotSeconds: 12 },
+    fiba: { clockEnabled: true, clockMinutes: 10, pointLimit: 21, shotEnabled: true, shotSeconds: 12, checkUp: false },
+    hobby: { clockEnabled: false, clockMinutes: 10, pointLimit: 21, shotEnabled: false, shotSeconds: 12, checkUp: false },
   };
   const PRESET_LABEL = { fiba: 'FIBA 3x3', hobby: 'Hobby', custom: 'Eigene' };
 
@@ -189,6 +189,7 @@
     if (gameClockActive(g) && g.clock.gameMs <= 0) { toast('Die Spielzeit ist abgelaufen'); return; }
     if (shotActive(g) && g.clock.shotMs <= 0) resetShot(g);
     if (!canRun(g)) return;
+    g.awaitCheck = false;
     g.clock.running = true;
     g.clock.anchor = now();
   }
@@ -227,6 +228,11 @@
   async function addPoints(g, team, v) {
     if (g.status !== 'running') return;
     pushEvent(g, 'pts', team, v);
+    // Check-Ball nach Korb: Uhren anhalten, weiter erst mit „Weiterspielen“.
+    if (g.settings.checkUp && g.clock.running) {
+      stopClock(g);
+      g.awaitCheck = true;
+    }
     resetShot(g);
     touch(g);
     render();
@@ -511,6 +517,7 @@
       inputs.clockMinutes.value = cfg.clockMinutes;
       inputs.pointLimit.value = cfg.pointLimit;
       inputs.shotSeconds.value = cfg.shotSeconds;
+      inputs.checkUp.checked = !!cfg.checkUp;
       rows.clock.classList.toggle('off', !cfg.clockEnabled);
       rows.shot.classList.toggle('off', !cfg.shotEnabled);
     };
@@ -518,6 +525,7 @@
     rows.clock = el('div', { class: 'row' }, el('span', { class: 'label', text: 'Spieluhr' }), numIn('clockMinutes', 1, 60), el('span', { class: 'unit', text: 'min' }), sw('clockEnabled'));
     rows.limit = el('div', { class: 'row' }, el('span', { class: 'label' }, 'Punktelimit', el('span', { class: 'hint', text: '0 = ohne Limit' })), numIn('pointLimit', 0, 200), el('span', { class: 'unit', text: 'Pkt' }), el('span', { style: 'width:54px;flex:none' }));
     rows.shot = el('div', { class: 'row' }, el('span', { class: 'label', text: 'Shotclock' }), numIn('shotSeconds', 5, 60), el('span', { class: 'unit', text: 's' }), sw('shotEnabled'));
+    rows.check = el('div', { class: 'row' }, el('span', { class: 'label' }, 'Check-Ball nach Korb', el('span', { class: 'hint', text: 'Nach Punkten stoppen die Uhren. Weiter geht es mit „Weiterspielen“.' })), sw('checkUp'));
     drawSeg();
     sync();
 
@@ -528,6 +536,7 @@
         pointLimit: clampInt(cfg.pointLimit, 0, 200, 21),
         shotEnabled: !!cfg.shotEnabled,
         shotSeconds: clampInt(cfg.shotSeconds, 5, 60, 12),
+        checkUp: !!cfg.checkUp,
       };
       const g = {
         id: uid(), createdAt: now(), updatedAt: now(), status: 'running', preset: cfg.preset,
@@ -549,7 +558,7 @@
         el('div', { class: 'section-title', text: 'Teams' }),
         teamBox(0), teamBox(1),
         el('div', { class: 'section-title', text: 'Regeln' }),
-        el('div', { class: 'box' }, seg, rows.clock, rows.limit, rows.shot),
+        el('div', { class: 'box' }, seg, rows.clock, rows.limit, rows.shot, rows.check),
         btn('Spiel starten', start, 'primary big')));
   }
 
@@ -623,7 +632,7 @@
     }
     ui.root.classList.toggle('finished', g.status === 'finished');
     if (ui.start) {
-      ui.start.textContent = g.clock.running ? 'Stopp' : 'Start';
+      ui.start.textContent = g.clock.running ? 'Stopp' : g.awaitCheck && g.status === 'running' ? 'Weiterspielen' : 'Start';
       ui.start.classList.toggle('running', g.clock.running);
     }
     ui.banner.replaceChildren();

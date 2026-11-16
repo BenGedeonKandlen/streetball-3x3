@@ -1,6 +1,6 @@
 // Service Worker: hält die App offline verfügbar.
 // Bei jeder neuen Version CACHE hochzählen, damit Geräte die neuen Dateien laden.
-const CACHE = 'sb3x3-v1';
+const CACHE = 'sb3x3-v2';
 const ASSETS = [
   './',
   './index.html',
